@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:go_router/go_router.dart';
 import '../models.dart';
 import '../providers/course_data_provider.dart';
+import '../providers/preferences_provider.dart';
 import '../services/parser_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (result == null) return;
 
     try {
-      final bytes = result.files.single.bytes ?? File(result.files.single.path!).readAsBytesSync();
+      final bytes = result.files.single.bytes!;
       final groups = _parser.parseExcelBytes(bytes);
       if (mounted) {
         context.read<CourseDataProvider>().setCourseGroups(groups);
@@ -195,6 +195,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       }
     }
+  }
+
+  void _showTimePreferences() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Consumer<PreferencesProvider>(
+        builder: (context, prefs, _) {
+          final p = prefs.preferences;
+          return DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.85,
+            expand: false,
+            builder: (context, scrollController) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Time Preferences', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('These preferences affect how timetables are scored and sorted.',
+                      style: TextStyle(color: Colors.grey[600])),
+                  const Divider(height: 24),
+
+                  // Earliest start time
+                  const Text('Earliest Start Time', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(_minutesToTime(p.earliestStartMinute), style: const TextStyle(color: Colors.indigo)),
+                  RangeSlider(
+                    values: RangeValues(
+                      p.earliestStartMinute.toDouble(),
+                      p.latestEndMinute.toDouble(),
+                    ),
+                    min: 420,  // 7:00 AM
+                    max: 1320,  // 10:00 PM
+                    divisions: 30,
+                    labels: RangeLabels(
+                      _minutesToTime(p.earliestStartMinute),
+                      _minutesToTime(p.latestEndMinute),
+                    ),
+                    onChanged: (values) {
+                      prefs.setEarliestStart(values.start.round());
+                      prefs.setLatestEnd(values.end.round());
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Preferred days
+                  const Text('Preferred Days', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day) {
+                      final selected = p.preferredDays.contains(day);
+                      return FilterChip(
+                        label: Text(day.substring(0, 3)),
+                        selected: selected,
+                        onSelected: (_) => prefs.toggleDay(day),
+                        selectedColor: Colors.indigo[100],
+                        checkmarkColor: Colors.indigo,
+                      );
+                    }).toList(),
+                  ),
+                  const Divider(height: 24),
+
+                  // Gap preference
+                  SwitchListTile(
+                    title: const Text('Prefer back-to-back classes'),
+                    subtitle: Text(
+                      p.preferBackToBack
+                          ? 'Minimize gaps between classes'
+                          : 'Prefer gaps between classes',
+                    ),
+                    value: p.preferBackToBack,
+                    onChanged: (v) => prefs.setGapPreference(v),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _minutesToTime(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -209,6 +313,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: Colors.indigo,
             foregroundColor: Colors.white,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.tune),
+                onPressed: _showTimePreferences,
+                tooltip: 'Time Preferences',
+              ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {

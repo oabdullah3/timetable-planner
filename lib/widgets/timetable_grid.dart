@@ -100,13 +100,15 @@ class TimetableGrid extends StatelessWidget {
   }
 
   Widget _buildDayCell(BuildContext context, String day, int slotStart, int slotEnd, List<_GridEvent> events, Map<String, Color> colorMap) {
-    final matching = events.where((e) {
+    // Find sessions that OVERLAP this slot (not just start in it)
+    final overlapping = events.where((e) {
       if (e.session.sessionDay != day) return false;
       final start = _timeToMinutes(e.session.sessionStartTime);
-      return start >= slotStart && start < slotEnd;
+      final end = _timeToMinutes(e.session.sessionEndTime);
+      return start < slotEnd && end > slotStart;
     }).toList();
 
-    if (matching.isEmpty) {
+    if (overlapping.isEmpty) {
       return Container(
         height: 50,
         color: Colors.grey[50],
@@ -114,8 +116,10 @@ class TimetableGrid extends StatelessWidget {
       );
     }
 
-    final e = matching.first;
+    final e = overlapping.first;
     final color = colorMap[e.course.courseCode] ?? Colors.blue;
+    final sessionStart = _timeToMinutes(e.session.sessionStartTime);
+    final isStartingSlot = sessionStart >= slotStart && sessionStart < slotEnd;
 
     return GestureDetector(
       onTap: () {
@@ -129,24 +133,28 @@ class TimetableGrid extends StatelessWidget {
         height: 50,
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          border: Border(left: BorderSide(color: color, width: 4)),
+          color: color.withValues(alpha: isStartingSlot ? 0.15 : 0.08),
+          border: isStartingSlot
+              ? Border(left: BorderSide(color: color, width: 4))
+              : Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              e.course.courseCode,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              e.session.sessionCode,
-              style: TextStyle(fontSize: 9, color: Colors.grey[700]),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+        child: isStartingSlot
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    e.course.courseCode,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    e.session.sessionCode,
+                    style: TextStyle(fontSize: 9, color: Colors.grey[700]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }

@@ -54,23 +54,12 @@ class _WizardScreenState extends State<WizardScreen> {
     final provider = context.read<CourseDataProvider>();
     final groups = <CourseGroup>[];
 
-    for (final tg in _tempGroups) {
-      final courses = (_tempCourses[groups.length] ?? []).map((tc) => Course(
+    for (int gi = 0; gi < _tempGroups.length; gi++) {
+      final tg = _tempGroups[gi];
+      final courses = (_tempCourses[gi] ?? []).map((tc) => Course(
         courseCode: tc.courseCode,
         courseName: tc.courseName,
-        sessionGroups: [
-          SessionGroup(
-            sessionType: tc.sessionType,
-            sessionOptions: tc.sessions.map((ts) => Session(
-              crn: ts.crn,
-              sessionCode: ts.code,
-              sessionDay: ts.day,
-              sessionStartTime: ts.start,
-              sessionEndTime: ts.end,
-              sessionAvailability: 0,
-            )).toList(),
-          ),
-        ],
+        sessionGroups: _groupSessionsByType(tc.sessions),
       )).toList();
 
       groups.add(CourseGroup(
@@ -83,6 +72,25 @@ class _WizardScreenState extends State<WizardScreen> {
 
     provider.setCourseGroups(groups);
     context.go('/');
+  }
+
+  List<SessionGroup> _groupSessionsByType(List<_TempSession> sessions) {
+    final byType = <String, List<Session>>{};
+    for (final ts in sessions) {
+      byType.putIfAbsent(ts.type, () => []);
+      byType[ts.type]!.add(Session(
+        crn: ts.crn,
+        sessionCode: ts.code,
+        sessionDay: ts.day,
+        sessionStartTime: ts.start,
+        sessionEndTime: ts.end,
+        sessionAvailability: 0,
+      ));
+    }
+    return byType.entries.map((e) => SessionGroup(
+      sessionType: e.key,
+      sessionOptions: e.value,
+    )).toList();
   }
 
   @override
