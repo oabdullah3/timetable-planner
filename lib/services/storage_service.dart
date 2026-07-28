@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart';
 
@@ -32,7 +32,8 @@ class StorageService {
       return groupsList
           .map((g) => CourseGroup.fromJson(g as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('StorageService.loadCourseData: failed to load data — $e');
       return null;
     }
   }
