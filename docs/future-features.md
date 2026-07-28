@@ -4,7 +4,18 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 
 ---
 
-## Export Dashboard as Excel / JSON
+## Import Warning Dialog
+
+**Problem:** When importing an Excel file, the current dashboard data gets overwritten with no warning. Users may accidentally lose their work.
+
+**Proposed solution:**
+- Before the Excel import proceeds, show a confirmation dialog:
+  > "Importing an Excel file will **replace all current data** in your dashboard. This cannot be undone. Continue?"
+  - Options: "Cancel" / "Continue"
+- After successful import, show a brief snackbar: "Imported X groups with Y courses from Excel."
+
+**Affected components:**
+- `screens/dashboard_screen.dart` — add dialog before `_importExcel()` executes the parser
 
 **Problem:** Users can import data via Excel, but there's no way to export their dashboard data for backup or sharing.
 
