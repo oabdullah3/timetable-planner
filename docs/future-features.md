@@ -4,6 +4,73 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 
 ---
 
+## Automated Test Suite ⭐ (Do Next)
+
+**Problem:** The app has been manually verified but there are no automated tests. Refactoring or adding features risks breaking existing functionality with no safety net.
+
+**Goal:** Write a suite of automated tests covering the core logic before the codebase evolves further.
+
+**Proposed scope:**
+
+### Unit Tests — Timetable Generator (`test/services/timetable_generator_test.dart`)
+- Generator respects min/max constraints per group
+- Generator respects locked courses (always included)
+- Generator respects locked sessions (forced config when locked exists)
+- Clash detection: sessions on same day with overlapping times are rejected
+- Clash detection: sessions on different days don't clash
+- `_isSessionCodesConsistent`: matching second chars pass, mismatched fail
+- `_calculateScore`: violations counted correctly for early/late/deselected day
+- `_calculateScore`: preference scores accumulated
+- `_calculateScore`: gap violations counted for back-to-back mode
+- Sorting: lower violations > lower penalty > higher preference
+- Error: desired < sumMin returns error
+- Error: desired > sumMax returns error
+- Error: more locked courses than desired returns error
+- Edge: no sessions → no configs
+- Edge: locked session with no valid config → error
+- Edge: single course, single session → single timetable
+
+### Unit Tests — Data Models (`test/models/..._test.dart`)
+- CourseGroup.toJson()/fromJson() roundtrip preserves all fields
+- Course.toJson()/fromJson() roundtrip preserves preferenceScore and locked
+- Session.toJson()/fromJson() roundtrip preserves locked
+- Session.copyWith() creates modified copy without mutating original
+
+### Unit Tests — Parser Service (`test/services/parser_service_test.dart`)
+- Parses valid Excel bytes into correct group/course/session structure
+- Handles merged/empty cells via carry-forward
+- Returns empty list for empty Excel
+
+### Widget Tests (`test/widgets/..._test.dart`)
+- Dashboard renders empty state when no groups exist
+- Timetable grid renders sessions in correct day columns
+- Session detail sheet shows correct info
+
+**Running tests:**
+```bash
+flutter test
+```
+
+**Test data:** Create a `test/fixtures/` directory with a minimal test Excel file.
+
+---
+
+## Session & Session Group Direct Editing
+
+**Problem:** Course groups and courses can be edited (✏️ button), but session groups and sessions cannot — you have to delete and re-add them to make changes.
+
+**Proposed solution:**
+- Add an edit (✏️) button next to each session group and each session in the dashboard
+- Tapping ✏️ on a session opens the same form as "Add Session" but pre-filled
+- Tapping ✏️ on a session group opens a dialog to rename the type (e.g. "Lecture" → "Lecture + Lab")
+- Add a `updateSession` method to `CourseDataProvider`
+
+**Affected components:**
+- `providers/course_data_provider.dart` — add `updateSession()` method
+- `screens/dashboard_screen.dart` — add edit dialogs for sessions and session groups
+
+---
+
 ## Import Warning Dialog
 
 **Problem:** When importing an Excel file, the current dashboard data gets overwritten with no warning. Users may accidentally lose their work.
@@ -16,6 +83,10 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 
 **Affected components:**
 - `screens/dashboard_screen.dart` — add dialog before `_importExcel()` executes the parser
+
+---
+
+## Export Dashboard as Excel / JSON
 
 **Problem:** Users can import data via Excel, but there's no way to export their dashboard data for backup or sharing.
 

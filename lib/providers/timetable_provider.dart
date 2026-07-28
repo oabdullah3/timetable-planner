@@ -36,6 +36,14 @@ class TimetableProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setError(String message) {
+    _error = message;
+    _timetables = [];
+    _generating = false;
+    _currentIndex = 0;
+    notifyListeners();
+  }
+
   void clear() {
     _timetables = [];
     _currentIndex = 0;

@@ -53,9 +53,22 @@ class _TimetableScreenState extends State<TimetableScreen> {
     final courseProvider = context.read<CourseDataProvider>();
     final prefProvider = context.read<PreferencesProvider>();
     final timetableProvider = context.read<TimetableProvider>();
+    final groups = courseProvider.courseGroups;
+
+    // Pre-flight: check each group's min against available courses
+    for (final group in groups) {
+      final min = group.min ?? 0;
+      if (min > group.courses.length) {
+        timetableProvider.setError(
+          'Group "${group.courseType}" has min=$min but only ${group.courses.length} course(s). '
+          'Add more courses or reduce the minimum.',
+        );
+        return;
+      }
+    }
 
     timetableProvider.generate(
-      courseProvider.courseGroups,
+      groups,
       int.parse(_countController.text.trim()),
       prefProvider.preferences,
     );
