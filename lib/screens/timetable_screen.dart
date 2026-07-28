@@ -35,6 +35,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Clear previous results so the form is always shown fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TimetableProvider>().clear();
+    });
+  }
+
+  @override
   void dispose() {
     _countController.dispose();
     super.dispose();
@@ -116,11 +125,43 @@ class _TimetableScreenState extends State<TimetableScreen> {
     return s;
   }
 
+  int _sumMaxes(List<CourseGroup> groups) {
+    int s = 0;
+    for (var g in groups) {
+      s += g.max ?? g.courses.length;
+    }
+    return s;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TimetableProvider>(
       builder: (context, ttProvider, _) {
         final groups = context.watch<CourseDataProvider>().courseGroups;
+
+        // Show error first (before "empty" check, since both share timetables.isEmpty)
+        if (ttProvider.error != null && ttProvider.timetables.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Timetable'),
+              centerTitle: true,
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(ttProvider.error!, style: const TextStyle(fontSize: 18, color: Colors.red), textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Go Back')),
+                ],
+              ),
+            ),
+          );
+        }
 
         // If no timetables yet and not generating, show form
         if (ttProvider.timetables.isEmpty && !ttProvider.generating) {
@@ -164,7 +205,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                   final v = int.tryParse(value.trim());
                                   if (v == null || v <= 0) return 'Enter a valid positive number';
                                   final minRequired = _sumMins(groups);
+                                  final maxRequired = _sumMaxes(groups);
                                   if (v < minRequired) return 'Minimum required is $minRequired';
+                                  if (v > maxRequired) return 'Maximum possible is $maxRequired';
                                   return null;
                                 },
                               ),
@@ -189,30 +232,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }
-
-        // Show error
-        if (ttProvider.error != null && ttProvider.timetables.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Timetable'),
-              centerTitle: true,
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-            ),
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(ttProvider.error!, style: const TextStyle(fontSize: 18, color: Colors.red), textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Go Back')),
-                ],
               ),
             ),
           );
