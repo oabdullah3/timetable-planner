@@ -110,8 +110,9 @@ class TimetableGenerator {
 
     // Now build the rest with remaining desired count
     // Phase 1: fill minimums, Phase 2: distribute extras across all groups
+    // Pass original desired total so terminal case can compute remaining
     _fillMinimums(
-        groups, 0, currentTT, sel, courseConfigs, allTimetables, remainingDesired);
+        groups, 0, currentTT, sel, courseConfigs, allTimetables, desired);
 
     if (allTimetables.isEmpty) {
       return GenerationResult(
@@ -135,6 +136,8 @@ class TimetableGenerator {
   // NO behavioral changes to any of these methods
 
   // Phase 1: Fill minimums for each group, then Phase 2: distribute extras
+  // Phase 1: Fill minimums for each group, then Phase 2: distribute extras
+  // [desiredTotal] is the original desiredCourses count from the user.
   void _fillMinimums(
     List<CourseGroup> groups,
     int groupIndex,
@@ -142,12 +145,14 @@ class TimetableGenerator {
     Map<CourseGroup, Set<Course>> selected,
     Map<Course, List<List<Session>>> configs,
     List<List<SelectedCourse>> allTimetables,
-    int desiredRemaining,
+    int desiredTotal,
   ) {
     if (groupIndex == groups.length) {
-      // All minimums filled — now distribute extras across all groups
-      _buildExtras(
-          groups, 0, currentTT, selected, configs, allTimetables, desiredRemaining);
+      // All minimums filled. Compute remaining extras budget (mirrors original code).
+      final remaining = desiredTotal - currentTT.length;
+      if (remaining >= 0) {
+        _buildExtras(groups, 0, currentTT, selected, configs, allTimetables, remaining);
+      }
       return;
     }
     final group = groups[groupIndex];
@@ -161,12 +166,12 @@ class TimetableGenerator {
         selected,
         configs,
         () => _fillMinimums(groups, groupIndex + 1, currentTT, selected,
-            configs, allTimetables, desiredRemaining),
+            configs, allTimetables, desiredTotal),
       );
     } else {
       // No minimum needed for this group, move to next
       _fillMinimums(groups, groupIndex + 1, currentTT, selected,
-          configs, allTimetables, desiredRemaining);
+          configs, allTimetables, desiredTotal);
     }
   }
 

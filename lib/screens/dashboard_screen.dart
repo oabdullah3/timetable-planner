@@ -136,7 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Session Code (e.g. L01)')),
                 TextField(controller: crnCtrl, decoration: const InputDecoration(labelText: 'CRN'), keyboardType: TextInputType.number),
                 DropdownButtonFormField(
-                  initialValue: selectedDay,
+                  // ignore: deprecated_member_use
+                  value: selectedDay,
                   items: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
                       .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                       .toList(),

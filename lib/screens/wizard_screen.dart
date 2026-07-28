@@ -216,7 +216,8 @@ class _WizardScreenState extends State<WizardScreen> {
     return Column(
       children: [
         DropdownButtonFormField<int>(
-          initialValue:_selectedGroupIndex < _tempGroups.length ? _selectedGroupIndex : 0,
+          // ignore: deprecated_member_use
+          value: _selectedGroupIndex < _tempGroups.length ? _selectedGroupIndex : 0,
           items: _tempGroups.asMap().entries.map((e) => DropdownMenuItem(
             value: e.key,
             child: Text(e.value.name),
@@ -279,7 +280,8 @@ class _WizardScreenState extends State<WizardScreen> {
     return Column(
       children: [
         DropdownButtonFormField<int>(
-          initialValue:_sessionGroupIdx,
+          // ignore: deprecated_member_use
+          value: _sessionGroupIdx,
           items: validGroups.map((g) => DropdownMenuItem(
             value: g, child: Text(_tempGroups[g].name),
           )).toList(),
@@ -288,7 +290,8 @@ class _WizardScreenState extends State<WizardScreen> {
         ),
         if (groupCourses.isNotEmpty) ...[
           DropdownButtonFormField<int>(
-            initialValue: _sessionCourseIdx < groupCourses.length ? _sessionCourseIdx : 0,
+            // ignore: deprecated_member_use
+            value: _sessionCourseIdx < groupCourses.length ? _sessionCourseIdx : 0,
             items: groupCourses.asMap().entries.map((e) => DropdownMenuItem(
               value: e.key, child: Text(e.value.courseCode),
             )).toList(),
@@ -311,7 +314,8 @@ class _WizardScreenState extends State<WizardScreen> {
               SizedBox(width: 70, child: TextField(controller: _sessionCrnCtrl, decoration: const InputDecoration(labelText: 'CRN'), keyboardType: TextInputType.number)),
               const SizedBox(width: 8),
               DropdownButtonFormField<String>(
-                initialValue: _sessionDay,
+                // ignore: deprecated_member_use
+                value: _sessionDay,
                 items: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
                     .map((d) => DropdownMenuItem(value: d, child: Text(d.substring(0, 3))))
                     .toList(),
@@ -328,7 +332,8 @@ class _WizardScreenState extends State<WizardScreen> {
               SizedBox(width: 80, child: TextField(controller: _sessionEndCtrl, decoration: const InputDecoration(labelText: 'End', hintText: '11:30'))),
               const SizedBox(width: 8),
               DropdownButtonFormField<String>(
-                initialValue: _sessionType,
+                // ignore: deprecated_member_use
+                value: _sessionType,
                 items: ['Lecture', 'Tutorial', 'Lab']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
