@@ -43,6 +43,15 @@ dependencies:
   printing: ^5.10.0
   intl: any
 
+  # State management
+  provider: ^6.1.2
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Local storage
+  shared_preferences: ^2.3.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

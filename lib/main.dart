@@ -1,30 +1,20 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'package:provider/provider.dart';
+import 'app.dart';
+import 'providers/course_data_provider.dart';
+import 'providers/preferences_provider.dart';
+import 'providers/timetable_provider.dart';
 
 void main() {
-  runApp(const CoursePlannerApp());
-}
-
-class CoursePlannerApp extends StatelessWidget {
-  const CoursePlannerApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: "Course Planner",
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        scaffoldBackgroundColor: Colors.grey[100],
-        cardTheme: CardThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        ),
-      ),
-      home: const HomeScreen(),
-    );
-  }
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CourseDataProvider()..load()),
+        ChangeNotifierProvider(create: (_) => PreferencesProvider()),
+        ChangeNotifierProvider(create: (_) => TimetableProvider()),
+      ],
+      child: App(),
+    ),
+  );
 }
