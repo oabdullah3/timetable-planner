@@ -6,24 +6,36 @@ import 'screens/dashboard_screen.dart';
 import 'screens/wizard_screen.dart';
 import 'screens/timetable_screen.dart';
 
-class App extends StatelessWidget {
-  App({super.key});
+class App extends StatefulWidget {
+  const App({super.key});
 
-  final GoRouter _router = GoRouter(
-    initialLocation: '/',
-    redirect: (context, state) {
-      final provider = context.read<CourseDataProvider>();
-      if (!provider.loaded) return null; // still loading
-      if (state.matchedLocation == '/wizard') return null;
-      if (provider.courseGroups.isEmpty && state.matchedLocation != '/') return '/wizard';
-      return null;
-    },
-    routes: [
-      GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
-      GoRoute(path: '/wizard', builder: (context, state) => const WizardScreen()),
-      GoRoute(path: '/timetable', builder: (context, state) => const TimetableScreen()),
-    ],
-  );
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final provider = context.read<CourseDataProvider>();
+    _router = GoRouter(
+      initialLocation: '/',
+      refreshListenable: provider,
+      redirect: (context, state) {
+        if (!provider.loaded) return null; // still loading
+        if (state.matchedLocation == '/wizard') return null;
+        if (provider.courseGroups.isEmpty) return '/wizard';
+        return null;
+      },
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+        GoRoute(path: '/wizard', builder: (context, state) => const WizardScreen()),
+        GoRoute(path: '/timetable', builder: (context, state) => const TimetableScreen()),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

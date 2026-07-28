@@ -286,6 +286,7 @@ class _WizardScreenState extends State<WizardScreen> {
     final course = groupCourses.isNotEmpty ? groupCourses[_sessionCourseIdx] : null;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<int>(
           // ignore: deprecated_member_use
@@ -315,42 +316,44 @@ class _WizardScreenState extends State<WizardScreen> {
                 onPressed: () => setState(() => course.sessions.removeAt(e.key)),
               ),
             )),
+          const SizedBox(height: 8),
+          TextField(controller: _sessionCodeCtrl, decoration: const InputDecoration(labelText: 'Session Code', hintText: 'e.g. L01')),
+          const SizedBox(height: 8),
+          TextField(controller: _sessionCrnCtrl, decoration: const InputDecoration(labelText: 'CRN', hintText: 'e.g. 1001'), keyboardType: TextInputType.number),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            // ignore: deprecated_member_use
+            value: _sessionDay,
+            items: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                .toList(),
+            onChanged: (v) => setState(() => _sessionDay = v!),
+            decoration: const InputDecoration(labelText: 'Day'),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
-              SizedBox(width: 80, child: TextField(controller: _sessionCodeCtrl, decoration: const InputDecoration(labelText: 'Code', hintText: 'L01'))),
-              const SizedBox(width: 8),
-              SizedBox(width: 70, child: TextField(controller: _sessionCrnCtrl, decoration: const InputDecoration(labelText: 'CRN'), keyboardType: TextInputType.number)),
-              const SizedBox(width: 8),
-              DropdownButtonFormField<String>(
-                // ignore: deprecated_member_use
-                value: _sessionDay,
-                items: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d.substring(0, 3))))
-                    .toList(),
-                onChanged: (v) => setState(() => _sessionDay = v!),
-                decoration: const InputDecoration(labelText: 'Day'),
-              ),
+              Expanded(child: TextField(controller: _sessionStartCtrl, decoration: const InputDecoration(labelText: 'Start Time', hintText: '10:00'))),
+              const SizedBox(width: 12),
+              Expanded(child: TextField(controller: _sessionEndCtrl, decoration: const InputDecoration(labelText: 'End Time', hintText: '11:30'))),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              SizedBox(width: 80, child: TextField(controller: _sessionStartCtrl, decoration: const InputDecoration(labelText: 'Start', hintText: '10:00'))),
-              const SizedBox(width: 8),
-              SizedBox(width: 80, child: TextField(controller: _sessionEndCtrl, decoration: const InputDecoration(labelText: 'End', hintText: '11:30'))),
-              const SizedBox(width: 8),
-              DropdownButtonFormField<String>(
-                // ignore: deprecated_member_use
-                value: _sessionType,
-                items: ['Lecture', 'Tutorial', 'Lab']
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (v) => setState(() => _sessionType = v!),
-                decoration: const InputDecoration(labelText: 'Type'),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  // ignore: deprecated_member_use
+                  value: _sessionType,
+                  items: ['Lecture', 'Tutorial', 'Lab']
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _sessionType = v!),
+                  decoration: const InputDecoration(labelText: 'Type'),
+                ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.indigo),
+              const SizedBox(width: 12),
+              FilledButton.icon(
                 onPressed: () {
                   if (_sessionCodeCtrl.text.trim().isNotEmpty && _sessionCrnCtrl.text.trim().isNotEmpty && _sessionStartCtrl.text.trim().isNotEmpty) {
                     setState(() {
@@ -369,6 +372,8 @@ class _WizardScreenState extends State<WizardScreen> {
                     });
                   }
                 },
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
               ),
             ],
           ),
