@@ -4,6 +4,50 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 
 ---
 
+## Export Dashboard as Excel / JSON
+
+**Problem:** Users can import data via Excel, but there's no way to export their dashboard data for backup or sharing.
+
+**Proposed solution:**
+- Add "Export as JSON" option (⋮ menu) — serializes current `List<CourseGroup>` to a downloadable JSON file (web: browser download; desktop: file save dialog)
+- Add "Export as Excel" option — generates an `.xlsx` file matching the import schema, so exported data can be re-imported or opened in spreadsheet software
+
+**Affected components:**
+- `screens/dashboard_screen.dart` — add export menu items
+- New `services/exporter_service.dart` — JSON and Excel export logic
+- Reuse `excel` package (already imported) for Excel export
+
+---
+
+## Onboarding Guide / Tooltips
+
+**Problem:** New users don't know what each button/feature does — lock icon, preference stars, min/max fields, etc.
+
+**Proposed solution:**
+- Add an "Instructions" or "How-To" page accessible from the dashboard app bar (ℹ️ icon)
+- Or add tooltip text (`Tooltip` widget) on key UI elements explaining each one
+- Or both: tooltips for at-a-glance help + a dedicated instructions page with scenarios
+
+**Suggested content for the guide:**
+
+| Feature | Explanation |
+|---------|-------------|
+| **Course Group** | A category of courses (e.g. "Core", "Elective"). Groups help you organize and set rules. |
+| **Min / Max** | Minimum and maximum number of courses the generator MUST/MAY pick from this group. E.g. "Core Min=2" means at least 2 core courses in every timetable. |
+| **Preference Stars** | Rate how much you want a course (0 = no preference, 5 = must-have). Higher-rated courses appear in earlier timetables. |
+| **Lock 🔒** | Forces a course or session to ALWAYS be included in every generated timetable. Use for pre-enrolled courses. |
+| **Session Type** | Each course can have multiple session types (Lecture, Tutorial, Lab). The generator picks ONE from each type. |
+| **Session Code** | Section identifier (e.g. L01, T02). The last character can indicate pairings — L01 often pairs with T01. |
+| **Generate** | Finds all valid clash-free timetables given your courses, preferences, and locks. Results are sorted best-first. |
+| **Paginated Grid** | Browse through alternative timetables using the arrows. Each page is one complete schedule. |
+
+**Implementation options:**
+- A dedicated `/guide` route with the full documentation
+- A `Tooltip` widget wrapping each icon/button in the dashboard
+- A "Quick Start" dialog that appears on first use (in addition to the wizard)
+
+---
+
 ## Session Binding Groups
 
 **Problem:** Some courses require specific lecture-tutorial pairings (e.g. Lecture L01 must enroll in Tutorial T01). The current system only has a heuristic check (`isSessionCodesConsistent`) that verifies second-character code matching.
