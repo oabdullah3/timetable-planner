@@ -127,7 +127,7 @@ class TimetableGenerator {
       return GeneratedTimetable(courses: tt, totalScore: score);
     }).toList();
 
-    scored.sort((a, b) => b.totalScore.compareTo(a.totalScore));
+    scored.sort((a, b) => a.totalScore.compareTo(b.totalScore));
 
     return GenerationResult(timetables: scored);
   }
@@ -334,12 +334,14 @@ class TimetableGenerator {
 
   // ----- END VERBATIM EXTRACTION -----
 
-  int _calculateScore(List<SelectedCourse> tt, TimePreferences prefs) {
-    int score = 0;
+  TimetableScore _calculateScore(List<SelectedCourse> tt, TimePreferences prefs) {
+    int violations = 0;
+    int timePenalty = 0;
+    int preferenceScore = 0;
 
     // Course preference scores
     for (final sc in tt) {
-      score += sc.course.preferenceScore * 10; // Weight: each preference level = 10 pts
+      preferenceScore += sc.course.preferenceScore;
     }
 
     // Time-based penalties
@@ -349,19 +351,21 @@ class TimetableGenerator {
         final end = _timeToMinutes(session.sessionEndTime);
         final day = session.sessionDay;
 
-        // Penalty for starting before preferred earliest time
+        // Violation: starting before preferred earliest time
         if (start < prefs.earliestStartMinute) {
-          score -= (prefs.earliestStartMinute - start) ~/ 10;
+          violations++;
+          timePenalty += (prefs.earliestStartMinute - start) ~/ 10;
         }
 
-        // Penalty for ending after preferred latest time
+        // Violation: ending after preferred latest time
         if (end > prefs.latestEndMinute) {
-          score -= (end - prefs.latestEndMinute) ~/ 10;
+          violations++;
+          timePenalty += (end - prefs.latestEndMinute) ~/ 10;
         }
 
-        // Penalty for non-preferred days
+        // Violation: non-preferred day
         if (!prefs.preferredDays.contains(day)) {
-          score -= 15;
+          violations++;
         }
       }
     }
@@ -382,12 +386,19 @@ class TimetableGenerator {
           for (int i = 1; i < times.length; i++) {
             final gap = times[i] - times[i - 1];
             // Assumes sessions are ~1hr; gaps > 90 min penalized
-            if (gap > 90) score -= (gap - 90) ~/ 10;
+            if (gap > 90) {
+              violations++;
+              timePenalty += (gap - 90) ~/ 10;
+            }
           }
         }
       }
     }
 
-    return score;
+    return TimetableScore(
+      violations: violations,
+      timePenalty: timePenalty,
+      preferenceScore: preferenceScore,
+    );
   }
 }

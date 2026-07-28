@@ -39,7 +39,15 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 - Or add tooltip text (`Tooltip` widget) on key UI elements explaining each one
 - Or both: tooltips for at-a-glance help + a dedicated instructions page with scenarios
 
-**Suggested content for the guide:**
+**Should include real logical scenarios**, not just feature definitions. For example:
+
+| Scenario | Explanation |
+|----------|-------------|
+| **Lock a Course vs Lock a Session** | Locking a course means it's always in every timetable. Locking a session means *if* that course is selected, this specific time slot is forced (but the course itself remains optional). Lock both for full control. |
+| **Min/Max in Groups** | If Core has Min=2, the generator picks at least 2 core courses. If Elective has Max=3, it picks at most 3 electives. The final count is your target number. |
+| **Preferences + Locks** | A locked course is a hard rule — always included. A 5-star (must-have) course is a soft preference — the algorithm prefers it but can drop it if no combination works. |
+
+**Suggested feature reference table:**
 
 | Feature | Explanation |
 |---------|-------------|
@@ -56,6 +64,20 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 - A dedicated `/guide` route with the full documentation
 - A `Tooltip` widget wrapping each icon/button in the dashboard
 - A "Quick Start" dialog that appears on first use (in addition to the wizard)
+
+---
+
+## Lock Icons in Timetable Grid
+
+**Problem:** When a course or session is locked, there's no visual indicator of this in the generated timetable grid. Users have to go back to the dashboard to check what's locked.
+
+**Proposed solution:**
+- Show a small 🔒 icon in the top-right corner of a session's grid cell if that session or its parent course is locked
+- The icon should be small (12-14px) and semi-transparent so it doesn't clutter the cell
+- Only appears on locked items; non-locked cells are unchanged
+
+**Affected components:**
+- `widgets/timetable_grid.dart` — `_buildDayCell`: check `session.locked` or `course.locked`, render lock icon overlay if true
 
 ---
 
