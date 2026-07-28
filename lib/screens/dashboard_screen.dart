@@ -17,6 +17,16 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final ParserService _parser = ParserService();
 
+  // ---- Validation helpers ----
+  bool _isValidTime(String time) {
+    final m = RegExp(r'^\d{2}:\d{2}$').firstMatch(time);
+    if (m == null) return false;
+    final parts = time.split(':');
+    final h = int.tryParse(parts[0]) ?? -1;
+    final min = int.tryParse(parts[1]) ?? -1;
+    return h >= 0 && h <= 23 && min >= 0 && min <= 59;
+  }
+
   void _showAddGroupDialog() {
     final nameCtrl = TextEditingController();
     final minCtrl = TextEditingController();
@@ -36,14 +46,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(onPressed: () {
-            if (nameCtrl.text.trim().isNotEmpty) {
-              context.read<CourseDataProvider>().addGroup(
-                nameCtrl.text.trim(),
-                min: int.tryParse(minCtrl.text),
-                max: int.tryParse(maxCtrl.text),
-              );
-              Navigator.pop(ctx);
+            final name = nameCtrl.text.trim();
+            final minVal = int.tryParse(minCtrl.text);
+            final maxVal = int.tryParse(maxCtrl.text);
+            if (name.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Group name is required'), backgroundColor: Colors.red));
+              return;
             }
+            if (minVal != null && maxVal != null && minVal > maxVal) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Min cannot be greater than Max'), backgroundColor: Colors.red));
+              return;
+            }
+            context.read<CourseDataProvider>().addGroup(name, min: minVal, max: maxVal);
+            Navigator.pop(ctx);
           }, child: const Text('Add')),
         ],
       ),
@@ -68,17 +85,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () {
-            if (nameCtrl.text.trim().isNotEmpty) {
-              context.read<CourseDataProvider>().updateGroup(
-                index,
-                courseType: nameCtrl.text.trim(),
-                min: int.tryParse(minCtrl.text),
-                max: int.tryParse(maxCtrl.text),
-              );
+          FilledButton(
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              final minVal = int.tryParse(minCtrl.text);
+              final maxVal = int.tryParse(maxCtrl.text);
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Group name is required'), backgroundColor: Colors.red));
+                return;
+              }
+              if (minVal != null && maxVal != null && minVal > maxVal) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Min cannot be greater than Max'), backgroundColor: Colors.red));
+                return;
+              }
+              context.read<CourseDataProvider>().updateGroup(index,
+                courseType: name, min: minVal, max: maxVal);
               Navigator.pop(ctx);
-            }
-          }, child: const Text('Save')),
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
@@ -100,15 +127,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () {
-            if (codeCtrl.text.trim().isNotEmpty) {
+          FilledButton(
+            onPressed: () {
+              final code = codeCtrl.text.trim();
+              if (code.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Course code is required'), backgroundColor: Colors.red));
+                return;
+              }
+              if (code.length > 10) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Course code too long (max 10 chars)'), backgroundColor: Colors.red));
+                return;
+              }
               context.read<CourseDataProvider>().addCourse(
                 groupIndex,
-                Course(courseCode: codeCtrl.text.trim(), courseName: nameCtrl.text.trim(), sessionGroups: []),
+                Course(courseCode: code, courseName: nameCtrl.text.trim(), sessionGroups: []),
               );
               Navigator.pop(ctx);
-            }
-          }, child: const Text('Add')),
+            },
+            child: const Text('Add'),
+          ),
         ],
       ),
     );
@@ -153,20 +192,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             FilledButton(onPressed: () {
-              if (codeCtrl.text.trim().isNotEmpty && crnCtrl.text.trim().isNotEmpty) {
-                context.read<CourseDataProvider>().addSession(
-                  groupIndex, courseIndex, typeCtrl.text.trim().isEmpty ? 'Lecture' : typeCtrl.text.trim(),
-                  Session(
-                    crn: int.parse(crnCtrl.text.trim()),
-                    sessionCode: codeCtrl.text.trim(),
-                    sessionDay: selectedDay,
-                    sessionStartTime: startCtrl.text.trim(),
-                    sessionEndTime: endCtrl.text.trim(),
-                    sessionAvailability: int.tryParse(availCtrl.text) ?? 0,
-                  ),
-                );
-                Navigator.pop(ctx);
+              // Validate
+              final type = typeCtrl.text.trim();
+              final code = codeCtrl.text.trim();
+              final crnText = crnCtrl.text.trim();
+              final start = startCtrl.text.trim();
+              final end = endCtrl.text.trim();
+              final avail = availCtrl.text.trim();
+
+              if (type.length > 20) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Session type too long (max 20 chars)'), backgroundColor: Colors.red));
+                return;
               }
+              if (code.isEmpty || code.length > 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Session code must be 1-6 characters'), backgroundColor: Colors.red));
+                return;
+              }
+              if (crnText.isEmpty || crnText.length > 10 || int.tryParse(crnText) == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('CRN must be a number (max 10 digits)'), backgroundColor: Colors.red));
+                return;
+              }
+              if (!_isValidTime(start)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Start time must be HH:MM (e.g. 10:00)'), backgroundColor: Colors.red));
+                return;
+              }
+              if (!_isValidTime(end)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('End time must be HH:MM (e.g. 11:30)'), backgroundColor: Colors.red));
+                return;
+              }
+              if (avail.isNotEmpty && (int.tryParse(avail) == null || int.parse(avail) < 0)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Availability must be a non-negative number'), backgroundColor: Colors.red));
+                return;
+              }
+
+              context.read<CourseDataProvider>().addSession(
+                groupIndex, courseIndex, type.isEmpty ? 'Lecture' : type,
+                Session(
+                  crn: int.parse(crnText),
+                  sessionCode: code,
+                  sessionDay: selectedDay,
+                  sessionStartTime: start,
+                  sessionEndTime: end,
+                  sessionAvailability: int.tryParse(avail) ?? 0,
+                ),
+              );
+              Navigator.pop(ctx);
             }, child: const Text('Add')),
           ],
         ),

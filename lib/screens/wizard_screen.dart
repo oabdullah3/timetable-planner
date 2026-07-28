@@ -355,22 +355,60 @@ class _WizardScreenState extends State<WizardScreen> {
               const SizedBox(width: 12),
               FilledButton.icon(
                 onPressed: () {
-                  if (_sessionCodeCtrl.text.trim().isNotEmpty && _sessionCrnCtrl.text.trim().isNotEmpty && _sessionStartCtrl.text.trim().isNotEmpty) {
-                    setState(() {
-                      course!.sessions.add(_TempSession(
-                        code: _sessionCodeCtrl.text.trim(),
-                        crn: int.parse(_sessionCrnCtrl.text.trim()),
-                        day: _sessionDay,
-                        start: _sessionStartCtrl.text.trim(),
-                        end: _sessionEndCtrl.text.trim(),
-                        type: _sessionType,
-                      ));
-                      _sessionCodeCtrl.clear();
-                      _sessionCrnCtrl.clear();
-                      _sessionStartCtrl.clear();
-                      _sessionEndCtrl.clear();
-                    });
+                  final code = _sessionCodeCtrl.text.trim();
+                  final crnText = _sessionCrnCtrl.text.trim();
+                  final start = _sessionStartCtrl.text.trim();
+                  final end = _sessionEndCtrl.text.trim();
+
+                  if (code.isEmpty || code.length > 6) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Session code must be 1-6 characters'), backgroundColor: Colors.red));
+                    return;
                   }
+                  if (crnText.isEmpty || crnText.length > 10 || int.tryParse(crnText) == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('CRN must be a number (max 10 digits)'), backgroundColor: Colors.red));
+                    return;
+                  }
+                  if (start.isEmpty || !RegExp(r'^\d{2}:\d{2}$').hasMatch(start)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Start time must be HH:MM (e.g. 10:00)'), backgroundColor: Colors.red));
+                    return;
+                  }
+                  final sh = int.parse(start.split(':')[0]);
+                  final sm = int.parse(start.split(':')[1]);
+                  if (sh < 0 || sh > 23 || sm < 0 || sm > 59) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invalid start time'), backgroundColor: Colors.red));
+                    return;
+                  }
+                  if (end.isEmpty || !RegExp(r'^\d{2}:\d{2}$').hasMatch(end)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('End time must be HH:MM (e.g. 11:30)'), backgroundColor: Colors.red));
+                    return;
+                  }
+                  final eh = int.parse(end.split(':')[0]);
+                  final em = int.parse(end.split(':')[1]);
+                  if (eh < 0 || eh > 23 || em < 0 || em > 59) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invalid end time'), backgroundColor: Colors.red));
+                    return;
+                  }
+
+                  setState(() {
+                    course!.sessions.add(_TempSession(
+                      code: code,
+                      crn: int.parse(crnText),
+                      day: _sessionDay,
+                      start: start,
+                      end: end,
+                      type: _sessionType,
+                    ));
+                    _sessionCodeCtrl.clear();
+                    _sessionCrnCtrl.clear();
+                    _sessionStartCtrl.clear();
+                    _sessionEndCtrl.clear();
+                  });
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Add'),
