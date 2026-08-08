@@ -1,11 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../providers/timetable_provider.dart';
 import '../providers/course_data_provider.dart';
 import '../providers/preferences_provider.dart';
+import '../services/pdf_export_service.dart';
 import '../widgets/timetable_grid.dart';
 import '../widgets/session_detail_sheet.dart';
 import '../models.dart';
@@ -20,6 +21,10 @@ class TimetableScreen extends StatefulWidget {
 class _TimetableScreenState extends State<TimetableScreen> {
   final TextEditingController _countController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  // Attached to the grid's RepaintBoundary so the PDF export can capture the
+  // whole timetable as an image.
+  final GlobalKey _gridCaptureKey = GlobalKey();
 
   static const List<Color> _courseColors = [
     Colors.blue,
@@ -79,55 +84,39 @@ class _TimetableScreenState extends State<TimetableScreen> {
     final current = timetableProvider.current;
     if (current == null) return;
 
-    final pdf = pw.Document();
-    final dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-    final events = <Map<String, dynamic>>[];
-    for (final sc in current.courses) {
-      for (final s in sc.sessions) {
-        String sessionType = '';
-        for (final sg in sc.course.sessionGroups) {
-          if (sg.sessionOptions.contains(s)) {
-            sessionType = sg.sessionType;
-            break;
-          }
-        }
-        events.add({
-          'day': s.sessionDay,
-          'start': _timeToMinutes(s.sessionStartTime),
-          'end': _timeToMinutes(s.sessionEndTime),
-          'title': '${sc.course.courseCode} - ${s.sessionCode}($sessionType) - ${s.crn}',
-          'name': sc.course.courseName,
-        });
+    try {
+      // Capture the ENTIRE grid (intrinsic size, not the scroll viewport) via
+      // the RepaintBoundary that wraps the grid's inner content.
+      final boundary =
+          _gridCaptureKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        _showExportError('Could not capture the timetable grid.');
+        return;
       }
-    }
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        _showExportError('Could not encode the timetable image.');
+        return;
+      }
 
-    final grouped = <String, List<Map<String, dynamic>>>{};
-    for (final e in events) {
-      grouped.update(e['day'], (list) => list..add(e), ifAbsent: () => [e]);
+      // The export service requests A3 landscape from the print dialog and
+      // box-fits the capture onto whichever paper is finally selected, so the
+      // whole timetable always lands on a single page.
+      await PdfExportService().exportToPrint(
+        timetable: current,
+        gridImagePng: byteData.buffer.asUint8List(),
+      );
+    } catch (e) {
+      _showExportError('Export failed: $e');
     }
+  }
 
-    pdf.addPage(
-      pw.MultiPage(
-        build: (pw.Context context) => [
-          pw.Text('Timetable', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 20),
-          for (final day in dayOrder.where(grouped.containsKey))
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(day, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 10),
-                for (final e in (grouped[day]!..sort((a, b) => a['start'].compareTo(b['start']))))
-                  pw.Text('${_minutesToTime(e['start'])} - ${_minutesToTime(e['end'])}: ${e['title']} - ${e['name']}'),
-                pw.SizedBox(height: 20),
-              ],
-            ),
-        ],
-      ),
+  void _showExportError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
-
-    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
   }
 
   int _sumMins(List<CourseGroup> groups) {
@@ -320,6 +309,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                   child: TimetableGrid(
                     timetable: current,
                     courseColors: _courseColors,
+                    captureKey: _gridCaptureKey,
                     onSessionTap: (course, session, sessionType) {
                       showModalBottomSheet(
                         context: context,
@@ -338,16 +328,5 @@ class _TimetableScreenState extends State<TimetableScreen> {
         );
       },
     );
-  }
-
-  int _timeToMinutes(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-  }
-
-  String _minutesToTime(int minutes) {
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
   }
 }

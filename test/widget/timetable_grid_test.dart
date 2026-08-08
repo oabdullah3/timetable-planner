@@ -107,4 +107,25 @@ void main() {
     expect(aPos.left, 0.0);
     expect(bPos.left, 65.0);
   });
+
+  testWidgets('block shows the course abbreviation and code', (tester) async {
+    final s = _session(1, 'L01', 'Monday', '10:00', '11:30');
+    final course = Course(
+      courseCode: 'GE1501',
+      courseName: 'Machine Learning',
+      preferenceScore: 0,
+      sessionGroups: [_sg('Lecture', [s])],
+    );
+    final tt = GeneratedTimetable(
+      courses: [SelectedCourse(course: course, sessions: [s])],
+      totalScore: const TimetableScore(violations: 0, timePenalty: 0, preferenceScore: 0),
+    );
+
+    await tester.pumpWidget(buildHost(tt));
+
+    // Line 1: the derived abbreviation, rendered as the block's bold title.
+    expect(find.text('ML'), findsOneWidget);
+    // Line 2: course code + session section.
+    expect(find.text('GE1501 · L01'), findsOneWidget);
+  });
 }

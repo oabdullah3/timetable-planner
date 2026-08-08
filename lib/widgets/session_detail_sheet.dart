@@ -37,6 +37,35 @@ class SessionDetailSheet extends StatelessWidget {
           Text(course.courseCode, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(course.courseName, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+          if (course.note.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.indigo[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.indigo[100]!),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.note_alt, size: 18, color: Colors.indigo[400]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      course.note.trim(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const Divider(height: 24),
           _detailRow(Icons.category, 'Type', sessionType),
           _detailRow(Icons.qr_code, 'CRN', session.crn.toString()),

@@ -7,11 +7,17 @@ class TimetableGrid extends StatelessWidget {
   final List<Color> courseColors;
   final void Function(Course course, Session session, String sessionType)? onSessionTap;
 
+  /// When set, the grid's inner content is wrapped in a [RepaintBoundary] with
+  /// this key so the ENTIRE grid (not the scroll viewport) can be captured as
+  /// an image for the PDF export.
+  final GlobalKey? captureKey;
+
   const TimetableGrid({
     super.key,
     required this.timetable,
     required this.courseColors,
     this.onSessionTap,
+    this.captureKey,
   });
 
   static const List<String> dayOrder = [
@@ -68,34 +74,37 @@ class TimetableGrid extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
-              children: [
-                SizedBox(
-                  width: _timeColumnWidth,
-                  child: _headerCell('Time'),
-                ),
-                for (final day in dayOrder)
-                  SizedBox(width: _dayColumnWidth, child: _headerCell(day)),
-              ],
-            ),
-            // Body: time gutter + one column per day. Each session is rendered
-            // as a block spanning its ACTUAL start/end time (not snapped to
-            // whole hours), so back-to-back sessions like a lecture ending
-            // 21:20 and a tutorial starting 21:30 render as two distinct blocks.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _timeGutter(minMinute, maxMinute, totalHeight),
-                for (final day in dayOrder)
-                  _buildDayColumn(
-                      context, day, events, minMinute, maxMinute, totalHeight, colorMap),
-              ],
-            ),
-          ],
+        child: RepaintBoundary(
+          key: captureKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  SizedBox(
+                    width: _timeColumnWidth,
+                    child: _headerCell('Time'),
+                  ),
+                  for (final day in dayOrder)
+                    SizedBox(width: _dayColumnWidth, child: _headerCell(day)),
+                ],
+              ),
+              // Body: time gutter + one column per day. Each session is rendered
+              // as a block spanning its ACTUAL start/end time (not snapped to
+              // whole hours), so back-to-back sessions like a lecture ending
+              // 21:20 and a tutorial starting 21:30 render as two distinct blocks.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _timeGutter(minMinute, maxMinute, totalHeight),
+                  for (final day in dayOrder)
+                    _buildDayColumn(
+                        context, day, events, minMinute, maxMinute, totalHeight, colorMap),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -198,13 +207,13 @@ class TimetableGrid extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              e.course.courseCode,
+              e.course.abbreviation,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
             ),
             Text(
-              e.session.sessionCode,
+              '${e.course.courseCode} · ${e.session.sessionCode}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 9, color: Colors.grey[700]),

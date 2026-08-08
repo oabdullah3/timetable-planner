@@ -65,6 +65,30 @@ void main() {
       expect(modified.preferenceScore, 5);
       expect(modified.courseCode, 'CS101');
     });
+
+    test('toJson/fromJson roundtrips the note field', () {
+      final original = Course(
+        courseCode: 'CS101',
+        courseName: 'Programming',
+        note: 'Need to brush up on pointers',
+        sessionGroups: [],
+      );
+      final restored = Course.fromJson(original.toJson());
+      expect(restored.note, 'Need to brush up on pointers');
+    });
+
+    test('fromJson defaults a missing note to empty string', () {
+      final json = {'courseCode': 'CS101', 'courseName': 'Programming', 'sessionGroups': []};
+      expect(Course.fromJson(json).note, '');
+    });
+
+    test('abbreviation getter derives from course name with code fallback', () {
+      final named = Course(courseCode: 'GE1501',
+          courseName: 'Chinese Civilisation - History and Philosophy', sessionGroups: []);
+      expect(named.abbreviation, 'CCHP');
+      final emptyName = Course(courseCode: 'CS101', courseName: '', sessionGroups: []);
+      expect(emptyName.abbreviation, 'CS101');
+    });
   });
 
   group('CourseGroup serialization', () {

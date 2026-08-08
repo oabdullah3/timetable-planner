@@ -250,6 +250,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showNoteDialog(int groupIndex, int courseIndex, Course course) {
+    final noteCtrl = TextEditingController(text: course.note);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Course Note'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${course.courseCode} - ${course.courseName}',
+                style: const TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteCtrl,
+              maxLines: 5,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                hintText: 'A short note about this course (shown in timetable details)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              context.read<CourseDataProvider>().updateCourseNote(
+                    groupIndex,
+                    courseIndex,
+                    noteCtrl.text.trim(),
+                  );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _importExcel() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -500,27 +541,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     child: ExpansionTile(
                                       leading: Icon(course.locked ? Icons.lock : Icons.book, color: Colors.indigo),
                                       title: Text('${course.courseCode} - ${course.courseName}'),
-                                      subtitle: Row(
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          _PreferenceStars(
-                                            score: course.preferenceScore,
-                                            onChanged: (s) => provider.setCoursePreference(index, cIdx, s),
+                                          Row(
+                                            children: [
+                                              _PreferenceStars(
+                                                score: course.preferenceScore,
+                                                onChanged: (s) => provider.setCoursePreference(index, cIdx, s),
+                                              ),
+                                              const Spacer(),
+                                              IconButton(
+                                                icon: Icon(
+                                                  course.note.trim().isNotEmpty
+                                                      ? Icons.note_alt
+                                                      : Icons.note_alt_outlined,
+                                                  size: 18,
+                                                  color: course.note.trim().isNotEmpty
+                                                      ? Colors.indigo
+                                                      : Colors.grey,
+                                                ),
+                                                onPressed: () => _showNoteDialog(index, cIdx, course),
+                                                tooltip: 'Course note',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  course.locked ? Icons.lock : Icons.lock_open,
+                                                  size: 18, color: course.locked ? Colors.orange : Colors.grey,
+                                                ),
+                                                onPressed: () => provider.toggleCourseLock(index, cIdx),
+                                                tooltip: course.locked ? 'Locked (always included)' : 'Not locked',
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                                onPressed: () {
+                                                  provider.deleteCourse(index, cIdx);
+                                                },
+                                              ),
+                                            ],
                                           ),
-                                          const Spacer(),
-                                          IconButton(
-                                            icon: Icon(
-                                              course.locked ? Icons.lock : Icons.lock_open,
-                                              size: 18, color: course.locked ? Colors.orange : Colors.grey,
+                                          if (course.note.trim().isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 4, top: 2),
+                                              child: Text(
+                                                course.note.trim(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontStyle: FontStyle.italic,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
                                             ),
-                                            onPressed: () => provider.toggleCourseLock(index, cIdx),
-                                            tooltip: course.locked ? 'Locked (always included)' : 'Not locked',
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                                            onPressed: () {
-                                              provider.deleteCourse(index, cIdx);
-                                            },
-                                          ),
                                         ],
                                       ),
                                       children: [

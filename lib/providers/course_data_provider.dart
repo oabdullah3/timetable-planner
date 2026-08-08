@@ -101,6 +101,13 @@ class CourseDataProvider extends ChangeNotifier {
     _scheduleSave();
   }
 
+  void updateCourseNote(int groupIndex, int courseIndex, String note) {
+    final course = _courseGroups[groupIndex].courses[courseIndex];
+    _courseGroups[groupIndex].courses[courseIndex] = course.copyWith(note: note);
+    notifyListeners();
+    _scheduleSave();
+  }
+
   void toggleCourseLock(int groupIndex, int courseIndex) {
     final course = _courseGroups[groupIndex].courses[courseIndex];
     _courseGroups[groupIndex].courses[courseIndex] = course.copyWith(locked: !course.locked);
