@@ -149,3 +149,5 @@ Ideas scoped out but not yet scheduled for implementation. Listed in rough prior
 **Problem:** The timetable grid and dashboard are designed for web/desktop screens. On smaller mobile screens, they may overflow or be unusable.
 
 **Proposed solution:** Add responsive breakpoints and alternative layouts for mobile widths.
+
+## Time Format and Input Ranges

@@ -18,6 +18,10 @@ class TimetableGrid extends StatelessWidget {
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
   ];
 
+  static const double _timeColumnWidth = 80;
+  static const double _dayColumnWidth = 130;
+  static const double _pxPerMinute = 1.0; // 60 px per hour
+
   @override
   Widget build(BuildContext context) {
     // Collect all sessions with their course info
@@ -43,7 +47,7 @@ class TimetableGrid extends StatelessWidget {
       return const Center(child: Text('No sessions in this timetable'));
     }
 
-    // Find time range
+    // Find time range, aligned to whole hours.
     int minMinute = 24 * 60, maxMinute = 0;
     for (final e in events) {
       final start = _timeToMinutes(e.session.sessionStartTime);
@@ -53,7 +57,7 @@ class TimetableGrid extends StatelessWidget {
     }
     minMinute = (minMinute ~/ 60) * 60;
     maxMinute = ((maxMinute + 59) ~/ 60) * 60;
-    final slots = (maxMinute - minMinute) ~/ 60;
+    final totalHeight = (maxMinute - minMinute) * _pxPerMinute;
 
     // Assign color per course
     final colorMap = <String, Color>{};
@@ -64,63 +68,113 @@ class TimetableGrid extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
-        child: Table(
-          border: TableBorder.all(color: Colors.grey[300]!, width: 1),
-          columnWidths: {
-            0: const FixedColumnWidth(80),
-            for (int i = 1; i <= 7; i++) i: const FixedColumnWidth(130),
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TableRow(
-              decoration: BoxDecoration(color: Colors.grey[200]),
+            // Header row
+            Row(
               children: [
-                _headerCell('Time'),
-                ...dayOrder.map((d) => _headerCell(d)),
+                SizedBox(
+                  width: _timeColumnWidth,
+                  child: _headerCell('Time'),
+                ),
+                for (final day in dayOrder)
+                  SizedBox(width: _dayColumnWidth, child: _headerCell(day)),
               ],
             ),
-            for (int row = 0; row < slots; row++)
-              _buildTimeRow(context, row, minMinute, events, colorMap),
+            // Body: time gutter + one column per day. Each session is rendered
+            // as a block spanning its ACTUAL start/end time (not snapped to
+            // whole hours), so back-to-back sessions like a lecture ending
+            // 21:20 and a tutorial starting 21:30 render as two distinct blocks.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _timeGutter(minMinute, maxMinute, totalHeight),
+                for (final day in dayOrder)
+                  _buildDayColumn(
+                      context, day, events, minMinute, maxMinute, totalHeight, colorMap),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  TableRow _buildTimeRow(BuildContext context, int row, int minMinute, List<_GridEvent> events, Map<String, Color> colorMap) {
-    final slotStart = minMinute + row * 60;
-    final slotEnd = slotStart + 60;
-    final timeStr = '${_minutesToTime(slotStart)}-${_minutesToTime(slotEnd)}';
-
-    return TableRow(
-      children: [
-        _timeCell(timeStr),
-        for (final day in dayOrder) _buildDayCell(context, day, slotStart, slotEnd, events, colorMap),
-      ],
+  Widget _timeGutter(int minMinute, int maxMinute, double totalHeight) {
+    return SizedBox(
+      width: _timeColumnWidth,
+      height: totalHeight,
+      child: Stack(
+        children: [
+          for (int m = minMinute; m <= maxMinute; m += 60)
+            Positioned(
+              top: (m - minMinute) * _pxPerMinute,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 18,
+                alignment: Alignment.topLeft,
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  _minutesToTime(m),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDayCell(BuildContext context, String day, int slotStart, int slotEnd, List<_GridEvent> events, Map<String, Color> colorMap) {
-    // Find sessions that OVERLAP this slot (not just start in it)
-    final overlapping = events.where((e) {
-      if (e.session.sessionDay != day) return false;
-      final start = _timeToMinutes(e.session.sessionStartTime);
-      final end = _timeToMinutes(e.session.sessionEndTime);
-      return start < slotEnd && end > slotStart;
-    }).toList();
+  Widget _buildDayColumn(
+    BuildContext context,
+    String day,
+    List<_GridEvent> events,
+    int minMinute,
+    int maxMinute,
+    double totalHeight,
+    Map<String, Color> colorMap,
+  ) {
+    final dayEvents = events.where((e) => e.session.sessionDay == day).toList();
+    final placements = _layoutDay(dayEvents, minMinute);
 
-    if (overlapping.isEmpty) {
-      return Container(
-        height: 50,
-        color: Colors.grey[50],
-        child: const Center(child: Text('')),
-      );
-    }
+    return SizedBox(
+      width: _dayColumnWidth,
+      height: totalHeight,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          // Hour gridlines
+          for (int m = minMinute; m <= maxMinute; m += 60)
+            Positioned(
+              top: (m - minMinute) * _pxPerMinute,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 0,
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
+                ),
+              ),
+            ),
+          // Session blocks at their true positions
+          for (final p in placements)
+            Positioned(
+              left: p.left,
+              top: p.top,
+              width: p.width,
+              height: p.height,
+              child: _buildSessionBlock(context, p.event, colorMap),
+            ),
+        ],
+      ),
+    );
+  }
 
-    final e = overlapping.first;
+  Widget _buildSessionBlock(
+      BuildContext context, _GridEvent e, Map<String, Color> colorMap) {
     final color = colorMap[e.course.courseCode] ?? Colors.blue;
-    final sessionStart = _timeToMinutes(e.session.sessionStartTime);
-    final isStartingSlot = sessionStart >= slotStart && sessionStart < slotEnd;
-
     return GestureDetector(
       onTap: () {
         if (onSessionTap != null) {
@@ -130,34 +184,91 @@ class TimetableGrid extends StatelessWidget {
         }
       },
       child: Container(
-        height: 50,
+        key: ValueKey('session-block-${e.course.courseCode}-${e.session.sessionCode}'),
+        margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
         padding: const EdgeInsets.all(2),
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isStartingSlot ? 0.15 : 0.08),
-          border: isStartingSlot
-              ? Border(left: BorderSide(color: color, width: 4))
-              : Border(left: BorderSide(color: color.withValues(alpha: 0.4), width: 2)),
+          color: color.withValues(alpha: 0.15),
+          border: Border(left: BorderSide(color: color, width: 4)),
+          borderRadius: BorderRadius.circular(4),
         ),
-        child: isStartingSlot
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    e.course.courseCode,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    e.session.sessionCode,
-                    style: TextStyle(fontSize: 9, color: Colors.grey[700]),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              )
-            : const SizedBox.shrink(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              e.course.courseCode,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+            ),
+            Text(
+              e.session.sessionCode,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 9, color: Colors.grey[700]),
+            ),
+            Text(
+              '${e.session.sessionStartTime}-${e.session.sessionEndTime}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  // Lays sessions out so each occupies its real time span. Sessions that
+  // overlap in time are placed side by side (shared columns); back-to-back
+  // sessions (one ends exactly when or before the next starts) reuse the same
+  // column and stack vertically with the true gap preserved.
+  List<_BlockPlacement> _layoutDay(List<_GridEvent> dayEvents, int minMinute) {
+    final sorted = List<_GridEvent>.from(dayEvents)..sort((a, b) {
+      final byStart = _startOf(a).compareTo(_startOf(b));
+      if (byStart != 0) return byStart;
+      return _endOf(b).compareTo(_endOf(a)); // longer block first on ties
+    });
+
+    final columnFreeAt = <int>[]; // column index -> minute it becomes free
+    final assigned = <_GridEvent, int>{};
+    for (final e in sorted) {
+      final start = _startOf(e);
+      var col = -1;
+      for (int c = 0; c < columnFreeAt.length; c++) {
+        if (columnFreeAt[c] <= start) {
+          col = c;
+          break;
+        }
+      }
+      if (col == -1) {
+        col = columnFreeAt.length;
+        columnFreeAt.add(0);
+      }
+      final end = _endOf(e);
+      if (end > columnFreeAt[col]) columnFreeAt[col] = end;
+      assigned[e] = col;
+    }
+
+    final numCols = columnFreeAt.isEmpty ? 1 : columnFreeAt.length;
+    final blockWidth = _dayColumnWidth / numCols;
+
+    return [
+      for (final e in sorted)
+        _BlockPlacement(
+          event: e,
+          left: assigned[e]! * blockWidth,
+          top: (_startOf(e) - minMinute) * _pxPerMinute,
+          height: (_endOf(e) - _startOf(e)) * _pxPerMinute,
+          width: blockWidth,
+        ),
+    ];
+  }
+
+  int _startOf(_GridEvent e) => _timeToMinutes(e.session.sessionStartTime);
+  int _endOf(_GridEvent e) => _timeToMinutes(e.session.sessionEndTime);
 
   void _defaultShowDetail(BuildContext context, _GridEvent event) {
     showModalBottomSheet(
@@ -174,15 +285,6 @@ class TimetableGrid extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
-    );
-  }
-
-  Widget _timeCell(String text) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      alignment: Alignment.center,
-      child: Text(text, style: TextStyle(fontSize: 10, color: Colors.grey[600]), textAlign: TextAlign.center),
     );
   }
 
@@ -204,4 +306,20 @@ class _GridEvent {
   final String sessionType;
 
   _GridEvent({required this.session, required this.course, required this.sessionType});
+}
+
+class _BlockPlacement {
+  final _GridEvent event;
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+
+  _BlockPlacement({
+    required this.event,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
 }

@@ -91,30 +91,60 @@ class TimetableGenerator {
       for (var g in groups) g: <Course>{}
     };
 
-    // ADDITIVE: pre-select locked courses into currentTT
-    for (final entry in lockedCourses.entries) {
-      for (final course in entry.value) {
-        final configs = courseConfigs[course] ?? [];
-        if (configs.isEmpty) {
-          return GenerationResult(
-            timetables: [],
-            error:
-                'Locked course ${course.courseCode} has no valid session configurations.',
-          );
+    // ADDITIVE: locked courses are mandatory. Place them clash-aware and
+    // explore EVERY valid config (not just the first): each locked course must
+    // appear as a whole course in every timetable, and a config is only kept
+    // if it does not clash with the locked courses already placed. If a locked
+    // course has no config that fits alongside the others, no timetable can
+    // include it and generation fails with a specific error.
+    final lockedFlat = <(CourseGroup, Course)>[
+      for (final entry in lockedCourses.entries)
+        for (final course in entry.value) (entry.key, course),
+    ];
+
+    // Records the locked course that no combination could accommodate, so the
+    // error message can name it instead of the generic "no timetable" message.
+    String? blockedLockedCourse;
+
+    void placeLocked(int index) {
+      if (index == lockedFlat.length) {
+        // All locked courses placed — build the rest as before.
+        _fillMinimums(
+            groups, 0, currentTT, sel, courseConfigs, allTimetables, desired);
+        return;
+      }
+      final (group, course) = lockedFlat[index];
+      final configs = courseConfigs[course] ?? const <List<Session>>[];
+      if (configs.isEmpty) {
+        blockedLockedCourse ??= course.courseCode;
+        return;
+      }
+      var placedAny = false;
+      for (final config in configs) {
+        if (!_hasClashWithTT(currentTT, config)) {
+          placedAny = true;
+          currentTT.add(SelectedCourse(course: course, sessions: config));
+          sel[group]!.add(course);
+          placeLocked(index + 1);
+          sel[group]!.remove(course);
+          currentTT.removeLast();
         }
-        // Pick the first valid config for locked courses
-        currentTT.add(SelectedCourse(course: course, sessions: List.from(configs.first)));
-        sel[entry.key]!.add(course);
+      }
+      if (!placedAny) {
+        blockedLockedCourse ??= course.courseCode;
       }
     }
 
-    // Now build the rest with remaining desired count
-    // Phase 1: fill minimums, Phase 2: distribute extras across all groups
-    // Pass original desired total so terminal case can compute remaining
-    _fillMinimums(
-        groups, 0, currentTT, sel, courseConfigs, allTimetables, desired);
+    placeLocked(0);
 
     if (allTimetables.isEmpty) {
+      if (blockedLockedCourse != null) {
+        return GenerationResult(
+          timetables: [],
+          error:
+              'Locked course $blockedLockedCourse does not fit any combinations.',
+        );
+      }
       return GenerationResult(
         timetables: [],
         error: 'No timetable possible for $desired courses.',
